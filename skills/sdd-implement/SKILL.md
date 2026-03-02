@@ -1,0 +1,194 @@
+---
+name: sdd-implement
+description: "Execute a single task from the SDD task list. Use when the user says 'implement task', 'execute task', 'build task', 'do TASK-001', 'next task', 'start implementing', or wants to work on a specific task. Most tightly scoped command — reads only the task and its listed files."
+argument-hint: "[TASK-NNN]"
+user-invokable: true
+---
+
+# /sdd:implement — Execute a single task
+
+You are implementing a single task from the SDD task list. This is the most tightly scoped command in the plugin. You read only the specific task block and the files listed in that task. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read files beyond what is explicitly listed in the task.
+
+## Step 1: Parse task ID
+
+Parse the task ID from `$ARGUMENTS` (e.g., `TASK-003`).
+
+If no task ID is provided:
+
+1. Read `.sdd/state.json`.
+2. Identify the `active_feature`.
+3. Look through the feature's `tasks` object and find the first task whose status is `pending` and whose dependencies are all `completed`.
+4. If no pending task with satisfied dependencies exists, report: "All tasks are either completed or blocked. No pending task is available to implement." Then stop.
+5. Use that task's ID as the target.
+
+If a task ID is provided, use it directly.
+
+## Step 2: Read and validate state
+
+Read `.sdd/state.json`. Perform these validations in order:
+
+1. **Feature state**: Verify the feature (from `active_feature`) is in state `tasked` or `implementing`.
+   - If in `tasked` (this is the first implementation): you will transition the feature to `implementing` in Step 7.
+   - If in `implementing`: proceed normally.
+   - If in any other state: report the current state and stop. Do NOT proceed.
+
+2. **Single feature lock**: Verify no OTHER feature in `state.json` is in `implementing` state. Only one feature can be in `implementing` state at a time. If another feature is already being implemented, report: "Feature `{other-feature}` is currently in `implementing` state. Only one feature can be implemented at a time. Complete or reset that feature before proceeding." Then stop.
+
+3. **Task status**: Verify the specified task's status is `pending`.
+   - If the task is `completed`: report that the task has already been completed and stop.
+   - If the task doesn't exist in the tasks object: report that the task ID was not found and stop.
+
+4. **Dependency check**: Read the task's dependencies from `specs/{feature-name}/tasks.md` (Step 3 will locate the task block). For each dependency listed in the task's "Depends on" field, verify it has status `completed` in `state.json`. If any dependency is not completed, report: "Cannot implement {task-id}. The following dependencies are not yet completed: {list of incomplete dependency IDs with their current status}." Then stop.
+
+## Step 3: Read the task block
+
+Read `specs/{feature-name}/tasks.md`. Locate the specific task block by its ID heading (e.g., `## TASK-003`). Extract from that block:
+
+- **Title**: the task title
+- **Description**: what to implement
+- **Files**: the list of files to read and/or modify
+- **Depends on**: task dependencies (already validated in Step 2)
+- **Validation**: the concrete check to run after implementation
+
+Do NOT read the rest of tasks.md beyond the specific task block. Do NOT read the spec or plan files.
+
+## Step 4: Read task files
+
+Read ONLY the files listed in the task's "Files" field.
+
+- If a file exists, read it.
+- If a file doesn't exist yet (because this task creates it), note that it needs to be created and proceed.
+- Do NOT read any files not listed in the task's Files field, even if they seem related or useful.
+
+## Step 5: Implement
+
+Implement EXACTLY what the task describes. Nothing more, nothing less.
+
+**Critical scope rule**: If during implementation you discover something needed that is not covered by this task, do NOT implement it. Instead, report it as a blocker:
+
+```
+BLOCKER: {Description of what is needed}
+This is not covered by {current task ID}.
+Potentially covered by: {future task ID, if identifiable, or "no existing task"}
+Action needed: {suggest adding a new task or modifying the task list}
+```
+
+After reporting a blocker, STOP. Do not continue implementing. Do not attempt a workaround. The user will decide how to proceed.
+
+Other implementation rules:
+- Do NOT refactor or improve code beyond what the task specifies.
+- Do NOT add comments, documentation, or tests unless the task explicitly calls for them.
+- Do NOT modify files not listed in the task's Files field.
+
+## Step 6: Validate
+
+Run the validation defined in the task's Validation field. This could be:
+
+- Running a test command
+- Checking that a file exists with specific exports
+- Verifying a build succeeds
+- Any other concrete check specified in the task
+
+### If validation passes
+
+Proceed to Step 7.
+
+### If validation fails — retry (maximum 3 attempts)
+
+You have up to 3 total attempts (including the first). On each retry:
+
+1. Analyze what went wrong. Explain the failure clearly.
+2. Modify the implementation to fix the issue.
+3. Re-run the validation.
+
+If validation passes on a retry, proceed to Step 7.
+
+### If validation fails after 3 attempts
+
+Stop. Report the problem with full context:
+
+```
+VALIDATION FAILED after 3 attempts for {task-id}: {task title}
+
+Attempt 1: {what was tried, what failed, error message}
+Attempt 2: {what was changed, what failed, error message}
+Attempt 3: {what was changed, what failed, error message}
+
+The implementation may be partially complete. Requesting guidance before proceeding.
+```
+
+Do NOT attempt further fixes. Wait for the user to provide guidance.
+
+## Step 7: Update state.json
+
+Read `.sdd/state.json` again (to avoid stale data). Apply these updates:
+
+1. **First task transition**: If the feature was in state `tasked` (this is the first task being implemented), transition it:
+   - Set the feature's `state` to `implementing`.
+   - Set `active_feature` to the feature name.
+   - Append a transition record to the feature's `transitions` array:
+
+   ```json
+   {
+     "from": "tasked",
+     "to": "implementing",
+     "at": "{ISO 8601 timestamp}",
+     "command": "sdd-implement"
+   }
+   ```
+
+2. **Mark task completed**: Update the task entry in the feature's `tasks` object:
+
+   ```json
+   "{TASK-ID}": {
+     "status": "completed",
+     "title": "{task title}",
+     "completed_at": "{ISO 8601 timestamp}"
+   }
+   ```
+
+3. **Check for feature completion**: After marking the task, check if ALL tasks in the feature's `tasks` object now have status `completed`. If yes:
+   - Transition the feature state to `validating`.
+   - Append a transition record:
+
+   ```json
+   {
+     "from": "implementing",
+     "to": "validating",
+     "at": "{ISO 8601 timestamp}",
+     "command": "sdd-implement"
+   }
+   ```
+   - Report: "All tasks completed. Feature `{feature-name}` is ready for validation. Run `/sdd:validate` to verify against spec."
+
+Write the updated state.json.
+
+## Step 8: Report result
+
+Report the outcome of THIS task:
+
+```
+Task {TASK-ID} completed: {task title}
+
+Implemented:
+- {Brief summary of what was done}
+
+Validation:
+- {What was checked and the result}
+
+Feature progress: {N}/{M} tasks completed
+```
+
+Then stop. Do NOT suggest or execute the next task.
+
+## Restrictions
+
+- Do NOT suggest or execute the next task. Report the result of THIS task and stop.
+- Do NOT implement anything not described in the task, even if it seems obviously needed. Report it as a blocker.
+- Context budget: Read ONLY the specific task block from tasks.md + the files listed in the task's Files field. Do NOT read the full tasks.md, the spec, the plan, or unrelated source files.
+- Maximum 3 validation retry attempts. After 3 failures, stop and ask for guidance.
+- Only one feature can be in `implementing` state at a time. If another feature is already being implemented, stop and report.
+- Do NOT modify files not listed in the task's Files field.
+- Do NOT advance the feature state beyond `validating`. The `/sdd:validate` command handles the transition to `completed`.
+
+$ARGUMENTS
