@@ -172,8 +172,9 @@ Ask the user: "All checks passed. Do you want to mark {feature-name} as complete
 On user confirmation, update `.sdd/state.json`:
 
 1. Validate the transition: check `allowed_transitions` in state.json to confirm that `"validating"` allows transitioning to `"completed"`. If the transition is not listed, warn the user and do not proceed.
-2. Transition feature state from `validating` to `completed`.
-3. Add a transition record:
+2. **Mark all tasks as completed**: For every task in the feature's `tasks` object that is not already `completed`, set its status to `completed` and add `"completed_at": "{ISO 8601 timestamp}"`. This ensures task states are consistent with the feature completion, even if tasks were implemented outside the `/sdd:implement` command.
+3. Transition feature state from `validating` to `completed`.
+4. Add a transition record:
 
 ```json
 {
@@ -184,8 +185,8 @@ On user confirmation, update `.sdd/state.json`:
 }
 ```
 
-4. If the completed feature was the `active_feature`, set `active_feature` to `null`.
-5. **Update coaching_profile:** Review which coaching categories needed intervention during this feature's lifecycle vs. which the user handled independently. Increment `unscaffolded` for categories where the spec and implementation were solid without coaching. Increment `completed_features` by 1.
+5. If the completed feature was the `active_feature`, set `active_feature` to `null`.
+6. **Update coaching_profile:** Review which coaching categories needed intervention during this feature's lifecycle vs. which the user handled independently. Increment `unscaffolded` for categories where the spec and implementation were solid without coaching. Increment `completed_features` by 1.
 
 **If gaps are found**:
 
