@@ -2,13 +2,13 @@
 
 Stop vibe coding. Start building with specs.
 
-SDD is a Claude Code plugin that implements a complete Specification-Driven Development workflow. Every feature goes through a structured lifecycle — specify, clarify, plan, tasks, implement, validate — with human approval at every step.
+SDD is a Claude Code plugin that gives you a structured way to define what you want **before** any code is written. When you ask an AI to build a feature without a plan, it makes hundreds of small decisions on your behalf — and many of them will conflict with each other or with what you actually wanted. SDD prevents that.
 
-The philosophy is simple: **the spec is the source of truth, the code is a derived artifact**. If code can't be traced back to a requirement, it's drift. If Claude makes an architectural decision you didn't approve, the system catches it.
+Every feature goes through a structured lifecycle — specify, clarify, plan, tasks, implement, validate — with human approval at every step. The spec is the source of truth; code is a derived artifact. If code can't be traced back to a requirement, the system catches it.
 
 ## Why SDD exists
 
-LLMs generate code by probabilistic token prediction, not by intentional reasoning. Without specifications constraining the decision space, AI-assisted development becomes a multiplier of both speed and technical debt simultaneously.
+Without specifications constraining the decision space, AI-assisted development becomes a multiplier of both speed and technical debt simultaneously. LLMs generate code by probabilistic token prediction — they don't reason about your architecture, your team's conventions, or your product goals unless you tell them explicitly.
 
 SDD constrains Claude's behavior through three mechanisms: specs that define what to build, a constitution that defines how to build it, and a state machine that enforces the workflow order. Claude can't skip steps, can't auto-advance, and can't implement anything that isn't in a confirmed spec.
 

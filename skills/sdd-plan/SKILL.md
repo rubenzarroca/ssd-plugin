@@ -9,25 +9,36 @@ user-invokable: true
 
 You are designing the technical approach for a feature that has been fully specified and clarified. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read source code — only spec.md, constitution.md, and state.json. Source code analysis belongs to the tasks phase.
 
-## Step 1: Read and validate state
+## Coaching Layer
+
+In sdd-plan, the user shifts from input provider to output consumer — they must evaluate a technical document they didn't write. Claude must bridge this gap.
+
+**Rules for presenting technical content:**
+1. **Translate to business impact — calibrated to experience.** Read `.sdd/state.json` field `completed_features`. On the first feature (`0`), translate every technical concept to business impact: not "SSR has better SEO" but "Server-side rendering means Google can read your pages." On subsequent features, translate only novel or complex concepts — the user has built vocabulary through previous features. Never re-explain concepts the user has already engaged with.
+2. **Explain trade-offs in functional terms.** Not "higher coupling" but "these two pieces depend on each other, so changing one means changing both."
+3. **Give the user evaluation criteria — calibrated.** Read `.sdd/state.json` field `completed_features`.
+   - `0`: Full evaluation criteria: "When reviewing this plan, focus on three things: (1) Does the data flow match how you described the feature? (2) Are there risks that feel too high for this stage? (3) Is there anything you don't understand? It's better to ask now than to discover a misunderstanding during implementation." Then add: "The more you engage here — catching risks, questioning decisions, suggesting changes — the more I calibrate to your level and move faster in future features."
+   - `1`: Brief reminder: "Same three things to check — data flow, risks, and anything unclear."
+   - `2+`: Skip the criteria. Just ask: "Does this match what you had in mind?"
+4. **Explain what an ADR is** on the user's first feature. Check `.sdd/state.json` field `milestones.adr_explained`. If `false`, explain: "An ADR (Architecture Decision Record) is a short document that records why we chose this approach. It's useful when someone asks 'why was it built this way?' six months from now." Then set `milestones.adr_explained` to `true` in state.json. If already `true`, skip the explanation.
+
+## Step 1: Identify feature and validate state
+
+Parse the feature name from `$ARGUMENTS`. If no argument is provided, use `active_feature`
+from state.json. If neither yields a feature name, list all features with their current states
+and ask the user which one to plan.
 
 Read `.sdd/state.json`. Check the feature's current state:
 
-- If the feature is in state `clarified`: proceed normally.
-- If the feature is in any other state: tell the user what state it is in and what command to run first. For example:
-  - `drafting` or `specified` → "This feature needs clarification first. Run `/sdd:clarify {feature-name}`."
-  - `planned` or beyond → "This feature already has a plan. Re-planning will overwrite the existing plan and ADR." Ask for explicit confirmation before continuing.
-- If no feature is found: list available features from state.json and ask the user which one to plan.
+- If in state `clarified`: proceed normally.
+- If in state `specified`: warn the user — "This feature hasn't been through clarification.
+  Running `/sdd:clarify` first is recommended to catch gaps and edge cases. Do you want to
+  proceed with planning anyway, or run clarify first?" Proceed only with explicit confirmation.
+- If in `drafting`: "This feature is still in drafting state. Run `/sdd:specify {feature-name}` first."
+- If in `planned` or beyond: "This feature already has a plan. Re-planning will overwrite the
+  existing plan and ADR." Ask for explicit confirmation before continuing.
 
-## Step 2: Parse feature name
-
-Parse the feature name from `$ARGUMENTS`.
-
-- If a feature name is provided: use it. Verify it exists in `state.json` features.
-- If `$ARGUMENTS` is empty: check `active_feature` in state.json. If set, use it.
-- If no active feature and no argument: list all features with their current states and ask the user which one to plan. Do not proceed without a feature name.
-
-## Step 3: Read the spec
+## Step 2: Read the spec
 
 Read `specs/{feature-name}/spec.md`. This is the full specification including any clarifications added by `/sdd:clarify`. Internalize:
 
@@ -37,11 +48,11 @@ Read `specs/{feature-name}/spec.md`. This is the full specification including an
 - Out of scope items
 - Clarifications
 
-## Step 4: Read the constitution
+## Step 3: Read the constitution
 
 Read `constitution.md`. The technical plan must respect every principle defined here. Architecture decisions that conflict with the constitution are not valid options.
 
-## Step 5: Generate the technical plan
+## Step 4: Generate the technical plan
 
 Based on the spec and constitution, generate a technical plan with these sections:
 
@@ -74,7 +85,7 @@ Identify what could go wrong and what compromises are being made:
 - Scope risks (what might grow beyond the spec)
 - Trade-offs (speed vs. thoroughness, simplicity vs. flexibility)
 
-## Step 6: Present alternatives (if applicable)
+## Step 5: Present alternatives (if applicable)
 
 If there are genuinely different architectural approaches to implement this feature:
 
@@ -84,11 +95,13 @@ If there are genuinely different architectural approaches to implement this feat
   - Pros (bullet list)
   - Cons (bullet list)
   - Constitution compatibility note (any tensions with defined principles)
-- Ask the user to choose. Wait for their answer before proceeding to Step 7.
+- Ask the user to choose. Wait for their answer before proceeding to Step 6.
 
-If there is only one reasonable approach: state it clearly and explain briefly why alternatives were not considered. Move directly to Step 7 without asking the user to choose.
+When presenting options, express each option's pros and cons in functional/business terms alongside technical terms. The user must be able to choose based on product impact, not just technical merit.
 
-## Step 7: Generate the ADR
+If there is only one reasonable approach: state it clearly and explain why alternatives were not viable — be specific. For example: "Your constitution constrains us to [X], and the spec requires [Y], which together point to only one viable approach." This is a teaching moment — the user learns how constraints narrow the decision space. Move directly to Step 6 without asking the user to choose.
+
+## Step 6: Generate the ADR
 
 An ADR (Architecture Decision Record) MUST be generated regardless of whether there were alternatives. Even if the approach is straightforward, document it.
 
@@ -123,7 +136,7 @@ Create `docs/adr/NNN-{decision-title}.md` where `{decision-title}` is a kebab-ca
 {Positive and negative impacts of this decision. Be honest about downsides.}
 ```
 
-## Step 8: Save the plan
+## Step 7: Save the plan
 
 Save the plan to `specs/{feature-name}/plan.md` with this exact structure:
 
@@ -131,31 +144,32 @@ Save the plan to `specs/{feature-name}/plan.md` with this exact structure:
 # Plan: {Feature Name}
 
 ## Architecture
-{Architecture description from Step 5}
+{Architecture description from Step 4}
 
 ## Dependencies
-{Dependencies list from Step 5}
+{Dependencies list from Step 4}
 
 ## Files Affected
-{File list with [create]/[modify] annotations from Step 5}
+{File list with [create]/[modify] annotations from Step 4}
 
 ## Risks and Trade-offs
-{Risk analysis from Step 5}
+{Risk analysis from Step 4}
 
 ## Decision
 See docs/adr/NNN-{decision-title}.md
 ```
 
-## Step 9: Update state.json
+## Step 8: Update state.json
 
 Read `.sdd/state.json` again (to avoid stale data). Update it:
 
+- Validate the transition: check `allowed_transitions` in state.json to confirm that the feature's current state allows transitioning to `"planned"`. If the transition is not listed, warn the user and do not proceed.
 - Set `features.{feature-name}.state` to `"planned"`.
 - Append a new transition record:
 
 ```json
 {
-  "from": "clarified",
+  "from": "{previous state — 'specified' or 'clarified'}",
   "to": "planned",
   "at": "{ISO 8601 timestamp}",
   "command": "sdd-plan"
@@ -166,9 +180,15 @@ Read `.sdd/state.json` again (to avoid stale data). Update it:
 
 Write the updated state.json.
 
-## Step 10: Present the plan
+## Step 9: Present the plan
 
-Display the complete plan.md content and the ADR to the user for review. After presenting them, stop and wait for the user's feedback.
+Display the complete plan.md content and the ADR to the user for review.
+
+After presenting the plan, provide a plain-language summary: "In short, here's what we're going to build and why: [2-3 sentences translating the architecture into business terms]. The main trade-off is [trade-off in plain language]. Does this feel right for what you described?"
+
+After presenting them, stop and wait for the user's feedback.
+
+**Coaching_profile update:** If the user provides substantive feedback on the plan (catches a risk, questions a trade-off, identifies a data flow issue), increment `unscaffolded` for the relevant category in `.sdd/state.json` coaching_profile — **capped at one per category per session**. If the user accepts without engagement, do not increment either counter — passive acceptance is neutral. Update state.json alongside the Step 8 state transition.
 
 ## Restrictions
 

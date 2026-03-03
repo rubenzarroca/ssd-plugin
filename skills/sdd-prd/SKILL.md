@@ -8,6 +8,8 @@ description: >
   in the SDD workflow — the PRD feeds context to all downstream /sdd:specify commands.
   Always use this skill before /sdd:specify when no PRD exists yet.
 disable-model-invocation: true
+argument-hint: "[product-name]"
+user-invokable: true
 ---
 
 # SDD PRD — Product Requirements Document Generator
@@ -18,9 +20,36 @@ The PRD is the strategic foundation of the SDD workflow. It defines WHAT you're 
 
 The PRD is not a technical document. It's a product document. No stack decisions, no data models, no API endpoints. Those belong in the feature specs. The PRD answers three questions: What problem are we solving? For whom? What does success look like?
 
+## Coaching Layer
+
+Claude monitors the user's answers during the discovery interview. When it detects a common weakness, it intervenes with a brief, contextual correction — never abstract theory.
+
+**Scaffolding triggers:**
+
+| What Claude detects | What Claude does |
+|---|---|
+| User describes a solution instead of a problem ("I want to build a notification system") | Redirects to the pain point: "That sounds like a solution — what's the problem it solves? What's happening today that's painful for your team?" |
+| User names users too broadly ("everyone", "the team", "our users") | Narrows: "Who feels the most pain? The sales rep who misses hot leads, or the manager who can't see pipeline? Their needs might shape this differently." |
+| Success criteria written as features instead of outcomes ("Build a dashboard") | Reframes as measurable outcome: "That's a feature, not a success criterion. What would change if the dashboard worked perfectly? Maybe: 'Reduce time to identify top leads from 2 hours to 5 minutes'?" |
+| Non-goals section is empty or vague | Prompts with a concrete boundary: "What should this product explicitly NOT do? For example, should it handle lead nurturing, or just scoring?" |
+| Assumptions stated as certainties | Surfaces the risk: "You said leads always provide a valid phone number. Is that confirmed, or is it an assumption? If it's an assumption, it belongs in the Risks section — because if it's wrong, it changes the product." |
+
+**Scaffolding rules:**
+1. **Contextual, never abstract.** Never say "you should define measurable criteria." Instead, offer a concrete rewrite using the user's own data.
+2. **One intervention at a time.** If multiple weaknesses appear in one answer, address the most impactful one first.
+3. **Suggest, don't impose.** Every coaching intervention ends with a question or option, never a mandate. DO: "With your team size, defining buyer vs. user might shape this differently. What do you think?" DON'T: "You need to distinguish between buyer and user. Here's the difference."
+4. **Business language first.** Introduce technical terms only when needed, always alongside their practical meaning.
+5. **Use the user's project, not generic examples.** Reference the project description from `/sdd:init`, use their exact vocabulary, and make every coaching intervention feel like it was written for this specific project — not pulled from a template.
+6. **Fade as competence grows.** Read `.sdd/state.json` field `coaching_profile` at the start of the discovery interview. For categories relevant to the PRD (`problem_vs_solution`, `user_specificity`, `measurable_outcomes`, `non_goals`): when `unscaffolded` reaches 1, reduce coaching intensity. When it reaches 2+, skip coaching on that category entirely. A user who has already demonstrated they can frame problems correctly doesn't need to be redirected from solutions to problems again. **Cap `unscaffolded` increments at one per category per session.**
+
 ## Workflow
 
 ### Step 1: Discovery Interview
+
+If `$ARGUMENTS` contains a product name or description, use it to seed the conversation.
+Confirm it with the user: "I'll create a PRD for **[argument]**. Is that correct, or do you
+want to adjust the scope?"
+If `$ARGUMENTS` is empty, begin the discovery interview from scratch.
 
 Before writing anything, conduct a focused interview. Ask questions ONE AT A TIME (never batch). Wait for confirmation before moving to the next question.
 
@@ -31,6 +60,7 @@ Before writing anything, conduct a focused interview. Ask questions ONE AT A TIM
 3. "What does the world look like if this product works perfectly? What changes?"
 4. "What are the main functional areas or modules you envision? Don't worry about details, just the big blocks."
 5. "Is there anything this product should explicitly NOT do? Boundaries help as much as features."
+   - *Coaching trigger: If the user says "I don't know" or gives a vague answer, guide them:* "Think about the closest thing to your product that you do NOT want to build. For example, if you're building a CRM, you probably don't want to also build an email marketing platform — even though they're related. What's the boundary for your product?"
 
 **Conditional questions (ask only if relevant):**
 
@@ -132,7 +162,9 @@ Do NOT mark the PRD as "Approved" until the user explicitly confirms. Leave stat
 ## Integration with SDD Workflow
 
 Once the PRD is approved:
-- Update `.sdd/state.json` to register the PRD exists: `"prd": { "status": "approved", "path": "specs/prd.md" }`
+- Read `.sdd/state.json` first. If it does not exist, warn the user: "No SDD project found. Run `/sdd:init` first to set up the project before saving PRD state." Do not attempt to create or update state.json — init owns that file.
+- If state.json exists, update it: `"prd": { "status": "approved", "path": "specs/prd.md", "approved_at": "{ISO 8601 timestamp}" }`
+- **Update coaching_profile:** For each scaffolding category that applied during the interview, increment `scaffolded` if Claude had to intervene, or `unscaffolded` if the user demonstrated competence unprompted. Relevant PRD categories: `problem_vs_solution`, `user_specificity`, `measurable_outcomes`, `non_goals`.
 - When the user runs `/sdd:specify` for any feature, Claude should read the PRD first to inherit context
 - The PRD's modules map directly to potential `/sdd:specify` targets
 
@@ -144,3 +176,5 @@ Once the PRD is approved:
 4. **Non-goals are mandatory.** A PRD without non-goals is incomplete. Push the user to define boundaries.
 5. **Success criteria must be measurable.** If a criterion can't be measured, rewrite it until it can or flag it as an open question.
 6. **Respect the user's domain expertise.** Claude provides structure and identifies gaps; the user provides business context and decisions.
+
+$ARGUMENTS

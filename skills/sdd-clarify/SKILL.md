@@ -1,12 +1,24 @@
 ---
 name: sdd-clarify
 description: "Refine a feature specification by identifying gaps, ambiguities, and edge cases. Use when the user says 'clarify spec', 'find ambiguity', 'what's missing', 'review spec for gaps', or wants to tighten a spec before planning. Runs after /sdd:specify."
+argument-hint: "[feature-name]"
 user-invokable: true
 ---
 
 # /sdd:clarify — Refine a feature specification
 
 You are refining an existing feature specification by identifying gaps and asking clarification questions. This is the refinement step after /sdd:specify. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read source code — only spec.md, constitution.md, and state.json.
+
+## Coaching Layer
+
+Clarify is one of the most important teaching moments in SDD — the user learns to think rigorously about their own spec. But without framing, it can feel like an interrogation. Claude must set the right tone.
+
+**Rules:**
+1. **Normalize gaps — calibrated.** Read `completed_features`. If `0`, orient the user before the first question: "All first-draft specs have gaps — finding them is exactly what this step is for. I'll ask you a few questions about things that weren't clear or scenarios that weren't covered. For each one, I'll explain why it matters." If `1+`, skip the normalization — the user knows the drill.
+2. **Name the gap type.** Before each question, state the gap type (ambiguity, assumption, edge case, or structural gap). Check `.sdd/state.json` field `milestones.gap_taxonomy_explained`. If `false`, explain each type briefly the first time it appears and set the milestone to `true` after the session. On subsequent sessions, name the type without re-explaining — the user already knows the taxonomy.
+3. **Teach prevention, not just detection.** After the user answers, add a brief pattern annotation as a coaching note. Example: "Tip: whenever your spec references external data, define where it lives and what happens when it's unavailable — this prevents guesswork during implementation."
+4. **Acknowledge that finding gaps is positive.** The message "your spec is incomplete" can feel like failure. Reframe: finding gaps now prevents bugs later.
+5. **Track coaching for fade.** Read `.sdd/state.json` field `coaching_profile` at the start of the session. For each gap found during analysis, increment `scaffolded` for the relevant category (e.g., `edge_cases` if you found a missing edge case, `data_models` if you found undefined entities). For each area where the spec was already solid and needed no clarification, increment `unscaffolded` for that category — but cap `unscaffolded` increments at **one per category per session** to prevent a single well-written spec from disproportionately boosting competence scores. Update `coaching_profile` in state.json when updating state in Step 7.
 
 ## Step 1: Read and validate state
 
@@ -72,9 +84,13 @@ After the user answers each question, **immediately** append the clarification t
 
 ```markdown
 ### C-{N}: {Question summary}
+**Type:** {ambiguity | assumption | edge case | structural gap}
 **Q:** {The question you asked}
 **A:** {The user's answer}
+**Pattern tip:** {One sentence teaching the user how to avoid this type of gap in future specs. Example: "When referencing external data sources, always define fallback behavior."}
 ```
+
+**Pattern tip fade:** Read `coaching_profile` for the gap's category. If the category has `unscaffolded >= 3`, omit the `**Pattern tip:**` line. Pattern tips teach *prevention* — a distinct skill from *generating* good content (which specify's coaching measures). Use a higher threshold (3 instead of 2) because competence in writing edge cases does not automatically mean competence in preventing edge case gaps.
 
 Where `{N}` is the sequential clarification number. If the spec already has clarifications from a previous run (e.g., C-1 through C-3 already exist), continue numbering from where it left off (e.g., start at C-4).
 
@@ -88,12 +104,21 @@ When you have no more gaps to ask about, ask the user:
 
 If the user has additional concerns, address them one at a time following the same pattern from Step 5 (ask, wait, append).
 
-If the user says no (or equivalent), proceed to Step 7.
+If the user says no (or equivalent), present a brief **coaching summary** that aggregates the pattern tips from this session:
+
+"We resolved [N] clarifications in this spec. Here are the key patterns to keep in mind for future specs:
+- [Aggregated pattern tip 1]
+- [Aggregated pattern tip 2]"
+
+If this is the user's second or later clarify session, compare with previous sessions and make the growth visible: "Last time we found [X] gaps — this time [Y]. [If fewer: Your specs are getting tighter, especially around [specific area].] [If similar but different types: These are different kinds of gaps than last time, which means the patterns from before stuck.]" This makes the user feel the system tracking their progress personally.
+
+Then proceed to Step 7.
 
 ## Step 7: Update state.json
 
 Read `.sdd/state.json` again (to avoid stale data). Update it:
 
+- Validate the transition: check `allowed_transitions` in state.json to confirm that the feature's current state allows transitioning to `"clarified"`. If the transition is not listed, warn the user and do not proceed.
 - Set the feature's state to `clarified`.
 - Append a transition record to the feature's `transitions` array:
 

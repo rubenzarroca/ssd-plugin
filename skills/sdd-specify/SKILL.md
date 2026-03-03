@@ -13,6 +13,8 @@ description: >
   just accept it — it coaches the user in real-time with concrete suggestions grounded in
   their actual feature, teaching technical literacy through practice, not theory.
 disable-model-invocation: true
+argument-hint: "[feature-name]"
+user-invokable: true
 ---
 
 # SDD Specify — Feature Specification Generator (11-Section Methodology)
@@ -41,6 +43,7 @@ Claude monitors everything the user provides during the specify workflow. When i
 | Security or compliance blind spot | Flags the gap. Example: "This feature processes phone numbers and emails. Does it need to comply with GDPR? If so, we need a consent field and a data retention policy in the spec." |
 | Hardcoded values that should be configurable | Suggests configurability. Example: "You said the hot threshold is 75. What if that changes next quarter? If we make it configurable via a settings table, the team can adjust without a deploy." |
 | Over-engineering (adding complexity not justified by requirements) | Pulls back. Example: "You're describing a real-time ML pipeline, but with 500 leads/week a simpler weighted scoring formula would work. We can always upgrade to ML later if the volume justifies it. Want to start simpler?" |
+| User struggles with technically dense sections (data models, API contracts) — gives vague answers, says "I don't know", or defers entirely | Shift from "ask the user to provide" to "propose and choose." Instead of "What should the response shape be?" offer: "Here are two ways this could work: [Option A — simpler] or [Option B — more flexible]. Option A is easier to build, Option B handles more cases. Which fits your needs?" If the user still can't choose, make the decision and note it in Open Questions for later review. |
 
 ### Scaffolding Rules
 
@@ -48,15 +51,19 @@ Claude monitors everything the user provides during the specify workflow. When i
 
 2. **One intervention at a time.** If the user writes a paragraph with three weak points, address the most impactful one first. Come back to the others naturally as the spec develops.
 
-3. **Suggest, don't impose.** Every coaching intervention ends with a question or option, never a mandate. "Want me to set that as the threshold?" not "I'm setting the threshold to 500ms."
+3. **Suggest, don't impose.** Every coaching intervention ends with a question or option, never a mandate. DO: "With your volume, 500ms P95 might work. What do you think?" DON'T: "That's too vague. Here's what it should be: 500ms P95."
 
-4. **Fade as competence grows.** If the user starts writing quantified NFRs on their own, stop coaching on NFRs. The scaffolding disappears as the user internalizes the patterns. There is no "level" system or explicit progression — it's organic.
+4. **Fade as competence grows.** Read `.sdd/state.json` field `coaching_profile` at the start of each session. It tracks two counters per scaffolding category (`quantified_nfrs`, `edge_cases`, `testable_criteria`, `non_goals`, `data_models`, `api_contracts`, `security`, `configurability`, `problem_vs_solution`, `measurable_outcomes`, `user_specificity`):
+   - `scaffolded`: times Claude had to intervene in this category.
+   - `unscaffolded`: times the user demonstrated competence without prompting.
+   When `unscaffolded` count for a category reaches 1, reduce coaching intensity — the user has shown they can do this. When it reaches 2+, stop coaching entirely. Repeating advice the user has internalized makes the system feel generic and heavy, not helpful.
+   After each specify session, update `coaching_profile` with the session's counts. **Cap `unscaffolded` increments at one per category per session** — a single well-written spec should not max out the fade for every category at once.
 
-5. **Celebrate progress implicitly.** When the user writes something well, don't say "great job on that testable requirement!" Instead, build on it naturally: "That's a clean requirement. For the P99 case, do you want a different threshold or same?" This acknowledges competence without being patronizing.
+5. **Make the adaptation visible.** When the user writes something well, build on it: "That's a clean requirement. For the P99 case, do you want a different threshold or same?" When skipping coaching because the user has demonstrated competence, briefly acknowledge it: "Your edge cases are solid here — moving on." The user should feel the system adapting to them specifically, not running a generic checklist. Never say "great job!" — just move faster through areas they've mastered.
 
 6. **Business language first, technical terms as bridges.** Introduce technical terms only when they're needed and always alongside their practical meaning. "Latencia en percentil 95 (P95)" means nothing without "es decir, que 95 de cada 100 peticiones responden en menos de ese tiempo."
 
-7. **Use the user's domain as the teaching medium.** Real estate, leads, promotions, commercial teams — these are the anchors. Every technical concept gets explained through the user's own business context, never through generic examples.
+7. **Use the user's project, not generic examples.** Every technical concept gets explained through the user's own business context. Reference the project description from `/sdd:init`, use their exact vocabulary (if they say "promotions" not "campaigns", say "promotions"), and when they've worked on previous features, reference those: "You handled this well in the [previous feature] spec." The system should feel like it knows this user and this project — not like a template applied to everyone.
 
 ---
 
@@ -64,7 +71,7 @@ Claude monitors everything the user provides during the specify workflow. When i
 
 Before starting a spec, Claude MUST:
 
-1. **Check for PRD:** Read `specs/prd.md`. If it exists and is approved, load it for context. If it doesn't exist, warn the user: "No PRD found. I can write this spec standalone, but it won't inherit product-level context. Want to create a PRD first with /sdd:prd?"
+1. **Check for PRD:** Read `.sdd/state.json` and check `prd.status`. If `"approved"`, read `specs/prd.md` for content and load it as context. If `prd.status` is `"none"` or `"draft"`, warn the user: "No approved PRD found. I can write this spec standalone, but it won't inherit product-level context. Want to create a PRD first with /sdd:prd?"
 2. **Check for constitution:** Read `constitution.md` if it exists. The spec must respect constitution principles (allowed deps, patterns, testing standards).
 3. **Check state:** Read `.sdd/state.json`. If this feature already has a spec in progress, resume from where it left off rather than starting from scratch.
 
@@ -256,11 +263,27 @@ clarify should be moved to the relevant section with their answer.]
 
 - [ ] [Question] — Owner: [name] — By: [date]
 - [ ] [Question] — Owner: [name] — By: [date]
+
+## Clarifications
+
+<!-- Added by /sdd:clarify. Do not edit manually. -->
 ```
 
 ### Step 3: Post-Generation Coaching Review
 
-After generating the spec, Claude performs a self-audit before presenting it to the user. For each section, check:
+After generating the spec, Claude performs a self-audit and presents the spec **section by section** as a guided walkthrough rather than a single document dump. Use these fixed groupings:
+
+- **Group 1** (present together): Metadata, Context, Goals & Non-Goals
+- **Group 2** (present together): User Stories, Functional Requirements
+- **Group 3** (present alone, pause for confirmation): Non-Functional Requirements
+- **Group 4** (present alone, pause for confirmation): Technical Design
+- **Group 5** (present alone, pause for confirmation): Data Models
+- **Group 6** (present alone, pause for confirmation): API Contracts
+- **Group 7** (present together): Edge Cases, Open Questions
+
+The goal is co-authorship: the user should feel they shaped the spec, not that they received a finished artifact they can only accept or reject.
+
+For each section, check:
 
 | Section | Coaching check |
 |---|---|
@@ -289,16 +312,33 @@ Present the spec to the user with coaching notes inline. Example:
 After the user confirms the spec:
 
 1. Update `.sdd/state.json`:
-   ```json
-   {
-     "feature": "[feature-name]",
-     "state": "specified",
-     "spec_path": "specs/[feature-name]/spec.md",
-     "prd_reference": "specs/prd.md"
-   }
-   ```
+   - Set `active_feature` to `"[feature-name]"`.
+   - Validate the transition: check `allowed_transitions` in state.json to confirm that the current state (or `"drafting"` for new features) allows transitioning to `"specified"`. If the transition is not listed, warn the user and do not proceed.
+   - Create the feature entry under `features`:
+     ```json
+     {
+       "features": {
+         "[feature-name]": {
+           "state": "specified",
+           "spec_path": "specs/[feature-name]/spec.md",
+           "prd_reference": "specs/prd.md",
+           "transitions": [
+             {
+               "from": "drafting",
+               "to": "specified",
+               "at": "{ISO 8601 timestamp}",
+               "command": "sdd-specify"
+             }
+           ]
+         }
+       }
+     }
+     ```
+   - If the feature already exists in `features` (re-specifying), replace its entry entirely with the above.
 
-2. Tell the user: "Spec created at `specs/[feature-name]/spec.md`. Next steps: run `/sdd:clarify [feature-name]` to find gaps, or `/sdd:plan [feature-name]` if you're confident the spec is complete."
+2. Tell the user: "Spec created at `specs/[feature-name]/spec.md`." Then check `completed_features` from state.json:
+   - If `0`: Recommend clarify: "I recommend running `/sdd:clarify` next — even experienced spec writers miss gaps on first drafts, and catching them now prevents bugs during implementation."
+   - If `1+`: Present both options neutrally: "Next: `/sdd:clarify [feature-name]` to find gaps, or `/sdd:plan [feature-name]` if you're confident the spec is complete."
 
 3. Do NOT auto-advance. Wait for the user's explicit instruction.
 
@@ -320,9 +360,13 @@ After the user confirms the spec:
 
 8. **Coaching fades with competence.** If the user consistently provides quantified NFRs, stop coaching on quantification. If they always include edge cases, stop prompting for them. The scaffolding is responsive, not a checklist.
 
+9. **Propose, don't extract, when the user is stuck.** For technically dense sections (Data Models, API Contracts, Technical Design), if the user cannot provide the information, Claude should propose concrete options grounded in the user's business context rather than asking open-ended technical questions. The user's role shifts from "author" to "reviewer" for these sections — Claude drafts, the user approves or adjusts.
+
 ## Relationship to Other SDD Commands
 
 - **Upstream:** `/sdd:prd` produces the PRD that provides context to this spec
 - **Downstream:** `/sdd:clarify` analyzes this spec for gaps; `/sdd:plan` generates the technical plan from this spec
 - **Validation:** `/sdd:validate` checks implementation against the requirements defined here (FR-xxx, NFR-xxx)
 - **Cross-reference:** Requirement IDs (FR-001, NFR-001, EC-001) are referenced by `/sdd:tasks` and `/sdd:validate`
+
+$ARGUMENTS

@@ -147,6 +147,22 @@ All checks passed. Ready to mark as completed.
 
 Use these status indicators: covered/pass, missing/violation, partial/warning.
 
+After the raw report, present a **plain-language executive summary** — calibrated to experience. Read `.sdd/state.json` field `completed_features`:
+
+**`completed_features < 2`** — Full three-part summary:
+1. **What's done:** "X of Y requirements are fully implemented. The core feature works."
+2. **What's missing:** "These N items need attention: [list each missing/partial item in plain language, not just IDs]. For example, FR-004 (the email notification when a lead goes hot) is not implemented yet."
+3. **What to do next:** "To finish this feature, we need to [plain language action]. Do you want me to explain any of these items in more detail?"
+
+**`completed_features >= 2`** — Compact: "Coverage: X/Y requirements. [N gaps — list briefly]. How do you want to handle them?"
+
+If the report contains terms the user may not understand, check `.sdd/state.json` field `milestones.orphan_code_explained`. If `false` and orphan code was detected, explain it and then set the milestone to `true`:
+- "Orphan code" → "Code that exists but doesn't match any requirement in the spec — it might be extra or the spec might need updating."
+- "Constitution violation" → "Code that breaks one of the project rules you defined during setup."
+- "Partial coverage" → "The requirement is partly implemented but something is still missing."
+
+If `milestones.orphan_code_explained` is already `true`, use the terms without re-explaining them.
+
 ## Step 9: Handle results
 
 **If ALL checks pass** (100% coverage, no orphans, no constitution violations):
@@ -155,8 +171,9 @@ Ask the user: "All checks passed. Do you want to mark {feature-name} as complete
 
 On user confirmation, update `.sdd/state.json`:
 
-1. Transition feature state from `validating` to `completed`.
-2. Add a transition record:
+1. Validate the transition: check `allowed_transitions` in state.json to confirm that `"validating"` allows transitioning to `"completed"`. If the transition is not listed, warn the user and do not proceed.
+2. Transition feature state from `validating` to `completed`.
+3. Add a transition record:
 
 ```json
 {
@@ -167,15 +184,26 @@ On user confirmation, update `.sdd/state.json`:
 }
 ```
 
-3. If the completed feature was the `active_feature`, set `active_feature` to `null`.
+4. If the completed feature was the `active_feature`, set `active_feature` to `null`.
+5. **Update coaching_profile:** Review which coaching categories needed intervention during this feature's lifecycle vs. which the user handled independently. Increment `unscaffolded` for categories where the spec and implementation were solid without coaching. Increment `completed_features` by 1.
 
 **If gaps are found**:
 
-Present the report. Do NOT auto-fix anything. Do NOT suggest specific code changes. Let the user decide whether to:
+Present the report. Do NOT auto-fix anything. Do NOT suggest specific code changes. Help the user make an informed decision — calibrated to experience:
 
-- Update the spec to match the implementation (if the code is correct but the spec is outdated).
-- Update the code to match the spec (if the spec is correct but the code is incomplete).
-- Accept certain orphan code or deviations as intentional.
+**`completed_features < 2`** — Explain each option in plain language:
+"For each gap, you have three choices:
+1. **Update the code** to match the spec — choose this if the spec is correct and the code is missing something.
+2. **Update the spec** to match the code — choose this if the code does something useful that wasn't anticipated. This isn't a failure — it means we learned something during implementation.
+3. **Accept the deviation** — choose this if the difference is intentional or too minor to fix right now.
+
+If you're unsure about any item, tell me which one and I'll explain the trade-offs."
+
+**`completed_features >= 2`** — Skip the framework explanation. The user knows the options. Just ask: "For each gap: update code, update spec, or accept? Let me know per item."
+
+Address each gap individually if the user needs guidance. Do NOT batch all decisions together.
+
+**Coaching_profile update on gap resolution:** After the user resolves each gap, update `coaching_profile` for the relevant category. If the user correctly identifies the resolution (code drift vs. spec gap vs. acceptable deviation) without coaching, increment `unscaffolded`. If Claude had to explain the difference, increment `scaffolded`. **Cap at one per category per session.** This ensures the validate phase contributes to the adaptive coaching system even when the feature does not reach 100% coverage.
 
 ## PTC Mode
 

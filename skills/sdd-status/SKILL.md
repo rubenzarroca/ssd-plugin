@@ -53,6 +53,30 @@ Session notes: "{last_session_notes}"
 
 - Omit "Session notes" line if `last_session_notes` is null.
 - Omit "Last/Next" lines if the feature has no tasks (states before `tasked`).
+
+**Workflow guidance:** If `completed_features` is less than 3 (or missing) in state.json, append a brief orientation line after the status:
+
+If `completed_features < 2`, include a one-line phase description before the next step:
+```
+  Phase: {state} — {phase description}
+→ Next step: /sdd:{next-command} {feature-name}
+```
+
+Phase descriptions (hardcoded — no file reads needed):
+- `specified`: "Spec written, ready for gap analysis"
+- `clarified`: "Gaps resolved, ready for technical planning"
+- `planned`: "Architecture decided, ready for task decomposition"
+- `tasked`: "Tasks created, ready to start building"
+- `implementing`: "Building in progress"
+- `validating`: "All tasks done, ready for spec-vs-code verification"
+
+If `completed_features >= 2`, show only the next step without the phase description:
+```
+→ Next step: /sdd:{next-command} {feature-name}
+```
+
+Where `{next-command}` is determined by the current state: `specified` → `clarify`, `clarified` → `plan`, `planned` → `tasks`, `tasked` or `implementing` → `implement`, `validating` → `validate`.
+
 - If there are validation alerts in the feature entry, append:
 
 ```
@@ -96,7 +120,7 @@ Use these and only these:
 
 - Read ONLY `.sdd/state.json` — nothing else, ever
 - Keep output compact — no verbose explanations, no suggestions beyond what's specified above
-- Do NOT suggest next commands unless the state is empty (Case D)
+- Do NOT suggest next commands unless the state is empty (Case D) or the user has fewer than 3 completed features (see workflow guidance below)
 - Do NOT read or analyze any code, specs, plans, or other files
 - If state.json is malformed, report the parse error and stop
 

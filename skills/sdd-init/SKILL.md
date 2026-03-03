@@ -9,6 +9,32 @@ user-invokable: true
 
 You are setting up Specification-Driven Development for a project. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read source code — only directory listing and package manifest.
 
+## Step 0: Orient the user
+
+Before any detection or file creation, briefly explain what is about to happen — in plain language, not technical jargon:
+
+"Before we write any code, we're going to set up two things: a **project constitution** (your non-negotiable rules — like which tools to use and how code should be organized) and a **specifications workflow** (a structured way to define features before building them). Without clear rules, an AI makes hundreds of small decisions on your behalf — naming conventions, folder structure, which libraries to use — and many will conflict with what you actually want. These two tools stop that. I'll ask you a few questions — there are no wrong answers, and we can always refine later."
+
+Then ask: "Can you describe in one or two sentences what this project does?" Use the answer to ground all subsequent questions — refer back to the user's own words, use their terminology, and frame every technical concept through their business context throughout the entire init process.
+
+## Coaching Layer
+
+Init is the user's first encounter with SDD. The coaching here focuses on the constitution interview (Step 5), where the user must articulate project principles they may never have formalized.
+
+**Scaffolding triggers during the constitution interview:**
+
+| What Claude detects | What Claude does |
+|---|---|
+| User says "I don't know" to a category question | Propose based on detected stack: "Based on your package.json, you're using Next.js with App Router. That typically means file-based routing with colocated components. Does that sound right?" |
+| User gives an overly broad answer ("we test everything" / "standard security") | Narrow with specifics: "What do you test today? Unit tests on business logic? E2E on key flows? If nothing is set up yet, that's fine — we'll define it when you build your first feature." |
+| User provides a non-verifiable principle ("keep code clean", "follow best practices") | Reframe concretely: "'Clean code' means different things to different teams. For your project, could we say 'All functions under 50 lines' or 'No file exceeds 300 lines'? What does clean mean to you?" |
+| User defers all decisions ("whatever you think is best") | Anchor to their project: "I can suggest defaults based on your stack, but these rules are yours — they'll constrain everything I build later. Let me propose something and you tell me if it fits." |
+
+**Rules:**
+1. Same scaffolding principles as other SDD skills: contextual, one intervention at a time, suggest (don't impose), use the user's project vocabulary.
+2. **Seed the coaching_profile.** For each constitution category, note whether the user needed scaffolding or provided strong answers independently. Populate the relevant categories in `coaching_profile` when creating state.json in Step 6 — this gives downstream skills initial calibration data.
+3. **Ground every question in detections.** Reference what was found in the package manifest and directory structure. "Your project uses Prisma — should we add 'All database access goes through Prisma, no raw SQL' as a principle?"
+
 ## Step 1: Detect project stack
 
 Run `ls` on the project root. Look for:
@@ -84,25 +110,25 @@ Adapt the description and tech stack to what you detected. Do NOT add sections b
 
 ## Step 5: Generate constitution.md
 
-This is interactive. Guide the user through questions by category. For each category, ask 1-2 focused questions and convert answers into **verifiable principles** (not vague guidelines).
+This is interactive. Guide the user through questions by category. For each category below, first explain in one sentence what the category means in practical terms, then ask the questions. If the user doesn't know the answer to a question, say: "That's fine — we can leave this open and refine it later as we build." Never pressure the user to answer questions they aren't ready for.
 
-**Architecture:**
+**Architecture** — _This is about how the different pieces of your application are organized and communicate with each other._
 - "What architectural pattern does this project follow? (e.g., monolith, microservices, modular monolith, serverless)"
 - "Are there folder structure rules? (e.g., features in src/features/, tests next to source)"
 
-**Testing:**
+**Testing** — _This is about how you verify that your code works correctly before shipping._
 - "What's your testing approach? (e.g., unit + integration, E2E only, no tests yet)"
 - "Any minimum coverage target? Test framework preference?"
 
-**Security:**
+**Security** — _This is about how your application verifies who users are and protects their data._
 - "How is authentication handled? Any security patterns required?"
 - "Input validation approach? (e.g., zod schemas, manual, framework-provided)"
 
-**Dependencies:**
+**Dependencies** — _These are the external libraries your project uses. Controlling them prevents surprises._
 - List the currently installed dependencies from the manifest.
 - "Are all of these approved? Any that should be removed? What's the process for adding new ones?"
 
-**Code Standards:**
+**Code Standards** — _These are the formatting and naming rules that keep the codebase consistent._
 - "Naming conventions? (e.g., camelCase functions, PascalCase components, snake_case files)"
 - "Any formatting/linting tools already configured?"
 
@@ -152,6 +178,28 @@ Create `.sdd/state.json` with this exact schema (fill project name and timestamp
   "active_feature": null,
   "last_session_notes": null,
   "last_session_end": null,
+  "coaching_profile": {
+    "problem_vs_solution": { "scaffolded": 0, "unscaffolded": 0 },
+    "user_specificity": { "scaffolded": 0, "unscaffolded": 0 },
+    "measurable_outcomes": { "scaffolded": 0, "unscaffolded": 0 },
+    "non_goals": { "scaffolded": 0, "unscaffolded": 0 },
+    "quantified_nfrs": { "scaffolded": 0, "unscaffolded": 0 },
+    "edge_cases": { "scaffolded": 0, "unscaffolded": 0 },
+    "testable_criteria": { "scaffolded": 0, "unscaffolded": 0 },
+    "data_models": { "scaffolded": 0, "unscaffolded": 0 },
+    "api_contracts": { "scaffolded": 0, "unscaffolded": 0 },
+    "security": { "scaffolded": 0, "unscaffolded": 0 },
+    "configurability": { "scaffolded": 0, "unscaffolded": 0 }
+  },
+  "completed_features": 0,
+  "milestones": {
+    "adr_explained": false,
+    "orphan_code_explained": false,
+    "atomic_tasks_explained": false,
+    "gap_taxonomy_explained": false,
+    "role_transition_explained": false,
+    "requirement_traceability_explained": false
+  },
   "prd": {
     "status": "none",
     "path": "specs/prd.md"
@@ -159,7 +207,7 @@ Create `.sdd/state.json` with this exact schema (fill project name and timestamp
   "features": {},
   "allowed_transitions": {
     "drafting": ["specified"],
-    "specified": ["clarified", "drafting"],
+    "specified": ["clarified", "planned", "drafting"],
     "clarified": ["planned", "drafting"],
     "planned": ["tasked", "drafting"],
     "tasked": ["implementing", "drafting"],
@@ -169,6 +217,8 @@ Create `.sdd/state.json` with this exact schema (fill project name and timestamp
   }
 }
 ```
+
+**Important:** The coaching_profile values above are defaults. Before writing state.json, update them based on the constitution interview in Step 5: for each category where the user needed scaffolding, set `scaffolded: 1`. For each category where the user provided strong, specific answers without prompting, set `unscaffolded: 1`. This seeds the profile so downstream skills start with real calibration data instead of a blank slate.
 
 ## Step 7: Create .sdd/hooks.json
 
@@ -198,7 +248,7 @@ Create `.sdd/hooks.json`:
 
 Look at the project directory structure. If the project has **multiple clear entry points** (e.g., frontend + backend, multiple services, CLI + library) or **clear module boundaries**, suggest:
 
-"This project appears to have [describe boundaries]. Would you like me to create an AGENTS.md file to define specialized agents for different areas?"
+"This project appears to have [describe boundaries]. An AGENTS.md file tells Claude which parts of the codebase have specialized rules or different expertise needs — for example, a frontend module might have different testing patterns than a backend API. Would you like me to create one?"
 
 If the user declines or the project is a single-module project, skip this step.
 

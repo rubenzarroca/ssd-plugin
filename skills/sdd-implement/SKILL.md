@@ -9,6 +9,21 @@ user-invokable: true
 
 You are implementing a single task from the SDD task list. This is the most tightly scoped command in the plugin. You read only the specific task block and the files listed in that task. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read files beyond what is explicitly listed in the task.
 
+## Coaching Layer
+
+During implementation, the user shifts from active participant to observer. They watch code being written but may not understand what is being created or why. Without coaching, this phase becomes a black box. Claude must make the process transparent.
+
+**Rules:**
+1. **Announce before you build.** Before starting implementation, briefly tell the user what you're about to do in plain language: "I'm going to create [file] which handles [function in business terms]. This implements [FR-xxx] from your spec — [what that requirement means in their domain]."
+2. **Connect back to the spec.** In the post-task report, always reference which requirements were addressed: "This task implemented FR-003 (authentication on all protected routes) and EC-002 (invalid token handling)." The user should never wonder "why did that just happen?"
+3. **Explain blockers in user terms.** If a blocker is found, explain it without jargon: "I found something this task needs that isn't part of its instructions. [Plain description]. We have two options: add it to an existing task, or create a new one. What would you prefer?"
+4. **Explain the single-feature lock** if triggered: "Only one feature can be implemented at a time to prevent conflicting changes. Feature `{other}` is currently being built. Complete or pause it before starting this one."
+5. **Calibrate explanation depth.** Read `.sdd/state.json` field `completed_features`:
+   - `0` (first feature): Detailed plain-language explanations of what each file does and why.
+   - `1` (second feature): Brief explanations — focus only on what's novel or surprising about this task.
+   - `2+`: Minimal — announce what you're building in one line, report results. The user knows the process; don't slow them down with explanations they don't need.
+6. **Role-transition coaching.** Check `.sdd/state.json` field `milestones.role_transition_explained`. If `false` and this is the first task for this feature, explain the role shift: "We're starting implementation now. From here, I'll work through each task one at a time and report what I built. Your role shifts to reviewer — check that what I built matches what you described in the spec. If anything looks wrong or confusing, stop me and ask." Then set `milestones.role_transition_explained` to `true`. On subsequent features, skip — the user knows the drill.
+
 ## Step 1: Parse task ID
 
 Parse the task ID from `$ARGUMENTS` (e.g., `TASK-003`).
@@ -38,8 +53,6 @@ Read `.sdd/state.json`. Perform these validations in order:
    - If the task is `completed`: report that the task has already been completed and stop.
    - If the task doesn't exist in the tasks object: report that the task ID was not found and stop.
 
-4. **Dependency check**: Read the task's dependencies from `specs/{feature-name}/tasks.md` (Step 3 will locate the task block). For each dependency listed in the task's "Depends on" field, verify it has status `completed` in `state.json`. If any dependency is not completed, report: "Cannot implement {task-id}. The following dependencies are not yet completed: {list of incomplete dependency IDs with their current status}." Then stop.
-
 ## Step 3: Read the task block
 
 Read `specs/{feature-name}/tasks.md`. Locate the specific task block by its ID heading (e.g., `## TASK-003`). Extract from that block:
@@ -47,8 +60,10 @@ Read `specs/{feature-name}/tasks.md`. Locate the specific task block by its ID h
 - **Title**: the task title
 - **Description**: what to implement
 - **Files**: the list of files to read and/or modify
-- **Depends on**: task dependencies (already validated in Step 2)
+- **Depends on**: task dependencies
 - **Validation**: the concrete check to run after implementation
+
+**Dependency check**: For each dependency listed in the task's "Depends on" field, verify it has status `completed` in `state.json`. If any dependency is not completed, report: "Cannot implement {task-id}. The following dependencies are not yet completed: {list of incomplete dependency IDs with their current status}." Then stop.
 
 Do NOT read the rest of tasks.md beyond the specific task block. Do NOT read the spec or plan files.
 
@@ -124,6 +139,7 @@ Do NOT attempt further fixes. Wait for the user to provide guidance.
 Read `.sdd/state.json` again (to avoid stale data). Apply these updates:
 
 1. **First task transition**: If the feature was in state `tasked` (this is the first task being implemented), transition it:
+   - Validate the transition: check `allowed_transitions` in state.json to confirm that `"tasked"` allows transitioning to `"implementing"`. If the transition is not listed, warn the user and do not proceed.
    - Set the feature's `state` to `implementing`.
    - Set `active_feature` to the feature name.
    - Append a transition record to the feature's `transitions` array:
@@ -148,6 +164,7 @@ Read `.sdd/state.json` again (to avoid stale data). Apply these updates:
    ```
 
 3. **Check for feature completion**: After marking the task, check if ALL tasks in the feature's `tasks` object now have status `completed`. If yes:
+   - Validate the transition: check `allowed_transitions` in state.json to confirm that `"implementing"` allows transitioning to `"validating"`. If the transition is not listed, warn the user and do not proceed.
    - Transition the feature state to `validating`.
    - Append a transition record:
 
@@ -165,13 +182,17 @@ Write the updated state.json.
 
 ## Step 8: Report result
 
-Report the outcome of THIS task:
+Report the outcome of THIS task using this format:
 
 ```
 Task {TASK-ID} completed: {task title}
 
-Implemented:
-- {Brief summary of what was done}
+What was built:
+- {Plain-language summary of what was done and what it means for the feature}
+
+Requirements addressed:
+- {FR-xxx}: {brief plain-language description of what this requirement means}
+- {EC-xxx}: {brief plain-language description}
 
 Validation:
 - {What was checked and the result}
