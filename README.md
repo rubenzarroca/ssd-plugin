@@ -246,7 +246,7 @@ sdd-plugin/
 
 ## Version
 
-0.3.0 — Post-feature retrospective, pair-programming mode, annotated example specs.
+0.4.0 — Interactive decisions via AskUserQuestionTool in plan, clarify, constitution, and specify.
 
 ## Author
 

@@ -95,7 +95,7 @@ If there are genuinely different architectural approaches to implement this feat
   - Pros (bullet list)
   - Cons (bullet list)
   - Constitution compatibility note (any tensions with defined principles)
-- Ask the user to choose. Wait for their answer before proceeding to Step 6.
+- **Use AskUserQuestionTool to present the choice.** Each option becomes a selectable choice: short name as label, a one-sentence trade-off summary as description, and the full pros/cons/constitution analysis as markdown preview. This lets the user compare options side by side before deciding. Wait for their answer before proceeding to Step 6.
 
 When presenting options, express each option's pros and cons in functional/business terms alongside technical terms. The user must be able to choose based on product impact, not just technical merit.
 

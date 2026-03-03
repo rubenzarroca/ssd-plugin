@@ -78,7 +78,9 @@ Prioritize questions by impact: ask about gaps that could lead to the biggest im
 
 ## Step 5: Ask questions one at a time
 
-Present questions **one at a time, sequentially**. Ask the first question, then STOP and wait for the user's answer. Do NOT batch multiple questions together. Do NOT present a numbered list of all questions at once.
+Present questions **one at a time, sequentially**. Do NOT batch multiple questions together. Do NOT present a numbered list of all questions at once.
+
+**Use AskUserQuestionTool when the clarification has identifiable resolution options.** Most ambiguities and edge cases have 2-4 natural resolutions (e.g., "What happens when the service is down?" → "Serve stale data" / "Queue for retry" / "Return error"). Present these as selectable options — the user can always pick "Other" for a custom answer. For truly open-ended gaps where you cannot propose meaningful options, ask conversationally instead.
 
 After the user answers each question, **immediately** append the clarification to the Clarifications section of `specs/{feature-name}/spec.md` using the Edit tool. Use this format:
 

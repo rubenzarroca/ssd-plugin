@@ -53,26 +53,28 @@ Do NOT read source code files. Only the package manifest.
 
 Ask questions one category at a time. Wait for the user's answer to each category before moving to the next. For each category below, first explain in one sentence what the category means in practical terms, then ask the questions. If the user doesn't know the answer to a question, say: "That's fine — we can leave this open and refine it later as we build." Never pressure the user to answer questions they aren't ready for.
 
+**Use AskUserQuestionTool for questions with discrete options.** Most constitution questions have natural choices — present them as selectable options so the user can decide quickly. Use the description field to explain each option's implications. The user can always pick "Other" for a non-standard setup. For open-ended questions (like folder structure rules or naming conventions), ask conversationally instead.
+
 **Architecture** — _This is about how the different pieces of your application are organized and communicate with each other._
-- "What architectural pattern does this project follow? (e.g., monolith, microservices, modular monolith, serverless, App Router)"
-- "Are there folder structure rules? (e.g., features in src/features/, colocated routes, tests next to source)"
+- "What architectural pattern does this project follow?" → Use AskUserQuestionTool with options like: Monolith, Modular monolith, Microservices, Serverless — each with a one-sentence description of when it fits.
+- "Are there folder structure rules?" → Ask conversationally (open-ended).
 
 **Testing** — _This is about how you verify that your code works correctly before shipping._
-- "What's your testing approach? (e.g., unit + integration, E2E only, no tests yet)"
-- "Any minimum coverage target? Test framework preference?"
+- "What's your testing approach?" → Use AskUserQuestionTool with options like: Unit + integration, E2E only, No tests yet — with descriptions of what each implies for the constitution.
+- "Any minimum coverage target? Test framework preference?" → Ask conversationally (project-specific).
 
 **Security** — _This is about how your application verifies who users are and protects their data._
-- "How is authentication handled? (e.g., OAuth, JWT, session-based, Supabase Auth)"
-- "Input validation approach? (e.g., zod schemas, manual, framework-provided)"
+- "How is authentication handled?" → Use AskUserQuestionTool with options like: OAuth, JWT, Session-based, Auth provider (Supabase/Auth0/Clerk) — with descriptions.
+- "Input validation approach?" → Use AskUserQuestionTool with options like: Zod schemas, Framework-provided, Manual validation — with descriptions.
 
 **Dependencies** — _These are the external libraries your project uses. Controlling them prevents surprises._
 - Present the full list of currently installed dependencies from the manifest (both production and dev).
-- "Are all of these approved? Any that should be removed?"
-- "What's the process for adding new dependencies?"
+- "Are all of these approved? Any that should be removed?" → Ask conversationally (requires reviewing the list).
+- "What's the process for adding new dependencies?" → Use AskUserQuestionTool with options like: No restrictions, Explicit approval required, Allowlist only — with descriptions.
 
 **Code Standards** — _These are the formatting and naming rules that keep the codebase consistent._
-- "Naming conventions? (e.g., camelCase functions, PascalCase components, kebab-case files)"
-- "Any formatting/linting tools already configured? (e.g., prettier, eslint, biome)"
+- "Naming conventions?" → Ask conversationally (too varied for options).
+- "Any formatting/linting tools already configured? (e.g., prettier, eslint, biome)" → Ask conversationally (project-specific).
 
 ### Step 3: Convert answers to verifiable principles
 
@@ -164,7 +166,7 @@ Current constitution:
 
 ### Step 3: Ask what to modify
 
-Ask the user: "Which category or principle would you like to modify? You can also add new principles to any category."
+**Use AskUserQuestionTool** to ask which category to modify. Present each category from the existing constitution as a selectable option (Architecture, Testing, Security, Dependencies, Code Standards, etc.), with a brief summary of the current principles as the description. Include "Add new category" as an option.
 
 If `$ARGUMENTS` specified a category, skip this question and jump directly to that category — present only that category's principles and ask what to change.
 
