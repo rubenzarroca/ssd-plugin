@@ -17,7 +17,7 @@ In sdd-tasks, the user transitions from reviewing a plan to reviewing an impleme
 1. **Explain what "atomic" means in practice.** Before presenting tasks, briefly orient the user: "Each task changes one thing that can be tested independently. If a task fails, only that task's work is lost — nothing else breaks. This is why we keep them small."
 2. **Explain why ordering matters.** In the narrative walkthrough, explain the build-up logic: "We build from the bottom up — data structures before business logic, business logic before UI — because each layer needs the one below it to exist first."
 3. **Guide the user's review.** After presenting the task list, tell them what to look for: "When reviewing these tasks, check: (1) Does each task's description match what you expect based on the spec? (2) Are the validation criteria concrete enough that we'll know if something went wrong? (3) Is anything missing that you know about from your domain?"
-4. **Explain time estimates if questioned.** "Tasks are kept small (5-15 minutes each) so that if something goes wrong, we lose at most 15 minutes of work. Larger tasks compound errors."
+4. **Explain complexity sizing if questioned.** "Tasks are sized by complexity (S/M/L), not time. S = one file, straightforward. M = a few files with real logic. L = multiple files or complex coordination. Small tasks mean small blast radius if something goes wrong."
 5. **Calibrate depth to experience.** Read `.sdd/state.json` fields `milestones.atomic_tasks_explained` and `completed_features`.
    - `completed_features = 0`: Full explanations (rules 1-4 above). After presenting, set `milestones.atomic_tasks_explained` to `true`.
    - `completed_features = 1`: Skip conceptual explanations (rules 1-2). Keep review guidance (rule 3) as a one-liner: "Same review criteria as before — check descriptions, validations, and completeness."
@@ -55,7 +55,10 @@ Break the plan into atomic tasks. Each task must have:
 - **Title**: Short, descriptive, starts with a verb (e.g., "Create auth middleware", "Add session validation").
 - **Requirements**: List of requirement IDs this task addresses (e.g., FR-001, FR-002, NFR-001, EC-003). Every FR, NFR, and EC from the spec must be covered by at least one task.
 - **Status**: `pending` (all tasks start as pending).
-- **Estimated**: 5-15 minutes. If a task would take longer, split it into smaller tasks.
+- **Complexity**: `S`, `M`, or `L`:
+  - **S (Small)**: Single file, straightforward logic — types, configs, simple utilities, boilerplate.
+  - **M (Medium)**: 1-3 files, meaningful logic — core functions, API handlers, components with state.
+  - **L (Large)**: 3+ files or complex logic requiring careful coordination — integration points, complex algorithms, multi-layer changes. If an L task has two clearly separable concerns, split it.
 - **Depends on**: List of TASK-NNN IDs this task requires to be completed first, or "none".
 - **Files**: Specific files that will be created or modified.
 - **Description**: 2-4 sentences describing exactly what to do.
@@ -82,7 +85,7 @@ Save the decomposition to `specs/{feature-name}/tasks.md` using this exact forma
 
 **Status**: pending
 **Requirements**: {FR-001, FR-002, NFR-001, EC-003...}
-**Estimated**: {N} min
+**Complexity**: {S | M | L}
 **Depends on**: none
 **Files**: {file1}, {file2}
 
@@ -127,8 +130,14 @@ This order matters because each phase builds on the previous one."
 
 After the narrative, include the summary:
 - Total number of tasks
-- Total estimated time — with the clarification: "These time estimates are for Claude's implementation speed, not human coding time."
-- Dependency chain overview (which tasks are independent, which form critical paths)
+- Complexity distribution (e.g., "8S, 4M, 1L") — no time estimates.
+- **Parallel waves**: Group tasks into execution waves based on dependencies. A wave contains all tasks that can run simultaneously (their dependencies are satisfied by previous waves). Present them as:
+  ```
+  Wave 1 (parallel): TASK-001, TASK-002, TASK-003 — no dependencies
+  Wave 2 (parallel): TASK-004, TASK-005 — depend on Wave 1
+  Wave 3: TASK-006 — depends on TASK-004 and TASK-005
+  ```
+  Highlight the critical path (longest chain of sequential dependencies) and the number of waves needed.
 - Requirement traceability: confirm every FR-xxx, NFR-xxx, and EC-xxx from the spec is covered by at least one task. If any requirement is orphaned (not covered by any task), flag it explicitly
 
 **Traceability milestone:** Check `.sdd/state.json` field `milestones.requirement_traceability_explained`. If `false`, explain after presenting the traceability summary: "Each task traces back to specific requirements from your spec (FR-001, EC-003, etc.). This chain — spec requirement → task → code — is what lets us verify nothing was missed or added when we validate later." Then set the milestone to `true`. If already `true`, skip the explanation.
@@ -139,7 +148,7 @@ Then ask: "Does this decomposition make sense? Are there any tasks that feel wro
 
 - Do NOT suggest /sdd:implement. Present the tasks and wait for confirmation.
 - Context budget: Read plan.md + spec.md (for requirement IDs) + directory listing. Do NOT read source code files.
-- Each task must be implementable in 5-15 minutes. If a task would be larger, split it.
+- Prefer S and M tasks. L tasks are acceptable but should be split if they have two clearly separable concerns.
 - Each task must be testable in isolation.
 - No task may depend on a task that comes after it.
 

@@ -60,8 +60,8 @@ After installing, open any project and run `/sdd:init` to set up the SDD structu
 /sdd:specify auth "OAuth2"     → Creates the spec with coaching — teaches you to write better requirements
 /sdd:clarify auth              → Finds gaps and ambiguities in the spec
 /sdd:plan auth                 → Generates technical plan + ADR
-/sdd:tasks auth                → Decomposes plan into atomic tasks (5-15 min each)
-/sdd:implement TASK-001        → Implements ONE task, validates, stops
+/sdd:tasks auth                → Decomposes plan into atomic tasks (S/M/L complexity)
+/sdd:implement                 → Implements tasks (auto-batches small ones), validates, stops
 /sdd:implement TASK-002 --pair → Pair mode: Claude scaffolds, you write the business logic
 /sdd:validate auth             → Drift detection: spec vs code, constitution compliance
 /sdd:retro auth                → (Optional) Reflect on what you learned during this feature
@@ -101,11 +101,11 @@ Generates the technical plan: architecture, dependencies, files affected, risks 
 
 ### 5. Tasks (`/sdd:tasks`)
 
-Decomposes the plan into atomic tasks. Each task has an ID, title, description, files affected, dependencies on other tasks, and a concrete validation criterion. Tasks are designed to be implementable in 5-15 minutes and testable in isolation.
+Decomposes the plan into atomic tasks. Each task has an ID, title, description, files affected, dependencies on other tasks, complexity rating (S/M/L), and a concrete validation criterion. Tasks are grouped into parallel waves — independent tasks can be executed simultaneously.
 
 ### 6. Implement (`/sdd:implement`)
 
-Executes one task at a time. Claude reads only the specific task and its listed files (minimal context budget). If it discovers something needed that isn't covered by the task, it reports a blocker instead of implementing it. If validation fails, it retries up to 3 times before asking for help. Never advances to the next task automatically.
+Executes tasks with minimal context budget — reads only the task blocks and their listed files. Auto-batches S-complexity tasks into a single pass. Supports explicit multi-task invocation (`/sdd:implement TASK-001 TASK-003`). If it discovers something needed that isn't covered by the task, it reports a blocker instead of implementing it. If validation fails, it retries up to 3 times before asking for help. After completing, suggests available parallel tasks.
 
 **Pair-programming mode (`--pair`):** Add the `--pair` flag to any implement command (e.g., `/sdd:implement TASK-003 --pair`). Claude generates the file structure, imports, and boilerplate, but leaves `// YOUR TURN:` markers in the business logic sections for you to complete. The difficulty of markers adapts to your experience — simpler hints on your first features, more open-ended on later ones. Maximum 3 markers per file, zero on config or boilerplate files. Without the flag, implementation works exactly as before.
 

@@ -1,13 +1,13 @@
 ---
 name: sdd-implement
-description: "Execute a single task from the SDD task list. Use when the user says 'implement task', 'execute task', 'build task', 'do TASK-001', 'next task', 'start implementing', or wants to work on a specific task. Most tightly scoped command — reads only the task and its listed files."
-argument-hint: "[TASK-NNN] [--pair]"
+description: "Execute one or more tasks from the SDD task list. Use when the user says 'implement task', 'execute task', 'build task', 'do TASK-001', 'next task', 'start implementing', or wants to work on specific tasks. Reads only task blocks and their listed files. Auto-batches small tasks when possible."
+argument-hint: "[TASK-NNN...] [--pair]"
 user-invokable: true
 ---
 
-# /sdd:implement — Execute a single task
+# /sdd:implement — Execute tasks
 
-You are implementing a single task from the SDD task list. This is the most tightly scoped command in the plugin. You read only the specific task block and the files listed in that task. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read files beyond what is explicitly listed in the task.
+You are implementing tasks from the SDD task list. This is the most tightly scoped command in the plugin. You read only task blocks and the files listed in them. In single-task mode, execute one task. In batch mode, execute multiple small tasks in a single pass. Follow these steps exactly, in order. Do NOT skip steps. Do NOT read files beyond what is explicitly listed in the tasks.
 
 ## Coaching Layer
 
@@ -34,11 +34,13 @@ If no task ID is provided:
 
 1. Read `.sdd/state.json`.
 2. Identify the `active_feature`.
-3. Look through the feature's `tasks` object and find the first task whose status is `pending` and whose dependencies are all `completed`.
+3. Find ALL tasks whose status is `pending` and whose dependencies are all `completed`.
 4. If no pending task with satisfied dependencies exists, report: "All tasks are either completed or blocked. No pending task is available to implement." Then stop.
-5. Use that task's ID as the target.
+5. Read each available task's complexity from `specs/{feature-name}/tasks.md`. If there are multiple available tasks and they are all S-complexity, batch them all as the target set. Otherwise, use the first available task (by ID order) as a single target.
 
-If a task ID is provided, use it directly.
+If one task ID is provided, use it directly. If multiple task IDs are provided (e.g., `TASK-001 TASK-003`), use them as a batch target set — all must be pending with satisfied dependencies.
+
+**Batch execution**: When the target is a batch of tasks, enter batch mode (see "Batch Mode" section below). Batch mode cannot be combined with `--pair`.
 
 ## Step 2: Read and validate state
 
@@ -51,9 +53,9 @@ Read `.sdd/state.json`. Perform these validations in order:
 
 2. **Single feature lock**: Verify no OTHER feature in `state.json` is in `implementing` state. Only one feature can be in `implementing` state at a time. If another feature is already being implemented, report: "Feature `{other-feature}` is currently in `implementing` state. Only one feature can be implemented at a time. Complete or reset that feature before proceeding." Then stop.
 
-3. **Task status**: Verify the specified task's status is `pending`.
-   - If the task is `completed`: report that the task has already been completed and stop.
-   - If the task doesn't exist in the tasks object: report that the task ID was not found and stop.
+3. **Task status**: Verify each target task's status is `pending`.
+   - If any task is `completed`: report that it has already been completed and stop.
+   - If any task doesn't exist in the tasks object: report that the task ID was not found and stop.
 
 ## Step 3: Read the task block
 
@@ -67,7 +69,7 @@ Read `specs/{feature-name}/tasks.md`. Locate the specific task block by its ID h
 
 **Dependency check**: For each dependency listed in the task's "Depends on" field, verify it has status `completed` in `state.json`. If any dependency is not completed, report: "Cannot implement {task-id}. The following dependencies are not yet completed: {list of incomplete dependency IDs with their current status}." Then stop.
 
-Do NOT read the rest of tasks.md beyond the specific task block. Do NOT read the spec or plan files.
+In single-task mode, do NOT read beyond the specific task block. In batch mode, read all task blocks in the batch but nothing else. Do NOT read the spec or plan files.
 
 ## Step 4: Read task files
 
@@ -204,7 +206,60 @@ Validation:
 Feature progress: {N}/{M} tasks completed
 ```
 
-Then stop. Do NOT suggest or execute the next task.
+Then check if there are multiple pending tasks whose dependencies are now all satisfied. If so, list them and suggest parallel execution:
+
+```
+Ready to run in parallel:
+- TASK-004: {title}
+- TASK-005: {title}
+
+These tasks have no dependencies on each other and can be implemented simultaneously.
+Run: /sdd:implement TASK-004 and /sdd:implement TASK-005
+```
+
+If only one task is available, suggest it normally. If no tasks are available, state that all remaining tasks are blocked or completed.
+
+---
+
+## Batch Mode
+
+Batch mode activates when Step 1 selects multiple tasks (either auto-batched S-complexity tasks or user-specified multiple IDs). Batch mode cannot be combined with `--pair`.
+
+### How batch execution works
+
+Execute Steps 3-7 as a loop over each task in the batch, in ID order. For each task:
+1. Read its task block (Step 3)
+2. Read its files (Step 4)
+3. Implement it (Step 5)
+4. Validate it (Step 6)
+5. Update state.json and sync tasks.md (Step 7)
+
+If any task in the batch hits a blocker or fails validation after 3 attempts, stop the entire batch and report progress so far.
+
+### Coaching in batch mode
+
+Replace per-task announcements with a single batch announcement before starting:
+"Executing {N} tasks in batch: {TASK-IDs}. These are all small, independent tasks."
+
+### Batch report (Step 8)
+
+Replace the standard single-task report with:
+
+```
+Batch completed: {N} tasks
+
+| Task | Title | Requirements | Validation |
+|------|-------|-------------|------------|
+| TASK-001 | {title} | FR-001, EC-002 | {what was checked} |
+| TASK-002 | {title} | FR-003 | {what was checked} |
+
+What was built:
+- {Unified plain-language summary covering the batch as a whole}
+
+Feature progress: {N}/{M} tasks completed
+```
+
+Then suggest next available tasks as in the standard Step 8.
 
 ---
 
@@ -268,7 +323,7 @@ Do NOT run validation (Step 6) in pair mode. The user must complete their sectio
 
 ## Restrictions
 
-- Do NOT suggest or execute the next task. Report the result of THIS task and stop.
+- Do NOT auto-execute the next task. After reporting, suggest available parallel tasks but wait for the user to invoke them.
 - Do NOT implement anything not described in the task, even if it seems obviously needed. Report it as a blocker.
 - Context budget: Read ONLY the specific task block from tasks.md + the files listed in the task's Files field. Do NOT read the full tasks.md, the spec, the plan, or unrelated source files.
 - Maximum 3 validation retry attempts. After 3 failures, stop and ask for guidance.
