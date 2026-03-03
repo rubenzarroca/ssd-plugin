@@ -208,8 +208,6 @@ Enable them in `.sdd/hooks.json` when you're ready.
 
 **Context budget by design.** Each command loads only what it needs. `/sdd:status` reads only state.json. `/sdd:implement` reads only the task and its files. No command loads spec + plan + tasks + constitution simultaneously.
 
-**The model is a better programmer than orchestrator.** When available, analysis commands (validate, tasks) use Programmatic Tool Calling to write analysis programs instead of reasoning conversationally over large codebases.
-
 ## Plugin structure
 
 ```

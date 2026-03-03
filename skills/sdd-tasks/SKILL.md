@@ -135,51 +135,6 @@ After the narrative, include the summary:
 
 Then ask: "Does this decomposition make sense? Are there any tasks that feel wrong or missing based on what you know about the feature?"
 
-## PTC Mode
-
-If you can execute Python code in a sandbox, use this approach instead of the conversational approach above.
-
-### Instructions
-
-Write and execute a Python program that:
-
-1. Reads `specs/{feature-name}/plan.md` and extracts components/modules to implement by parsing markdown headers and content.
-2. Lists all project files using `os.walk`, filtering by relevant extensions (`.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.rs`, `.go`, etc.). Exclude `node_modules/`, `.git/`, `dist/`, `build/`, `__pycache__/`, and similar build/dependency directories.
-3. For each relevant file, extracts imports and exported symbols (functions, classes, variables) by reading the file and parsing import/export statements with regex.
-4. Builds a dependency graph between files based on import relationships.
-5. Decomposes the plan into tasks, optimizing for minimum cross-file dependencies per task. Each task should touch as few files as possible while remaining complete.
-6. Outputs a JSON structure:
-
-```json
-{
-  "tasks": [
-    {
-      "id": "TASK-001",
-      "title": "Short descriptive title starting with a verb",
-      "files": ["src/path/to/file.ts", "src/path/to/other.ts"],
-      "depends_on": [],
-      "description": "2-4 sentences describing exactly what to do.",
-      "validation": "Concrete testable criterion.",
-      "estimated_minutes": 10
-    }
-  ]
-}
-```
-
-The program must handle edge cases:
-- Empty directories (skip gracefully)
-- Binary files (skip files that fail UTF-8 decode)
-- Files without imports (treat as leaf nodes in dependency graph)
-- Large files (read only first 100 lines for import extraction)
-
-Wrap all file reads in try/except to handle permission errors or encoding issues.
-
-### After receiving the JSON output
-
-1. Format the JSON tasks into `specs/{feature-name}/tasks.md` using the standard task format from Step 6.
-2. Update state.json as described in Step 7.
-3. Present tasks for review as described in Step 8.
-
 ## Restrictions
 
 - Do NOT suggest /sdd:implement. Present the tasks and wait for confirmation.
