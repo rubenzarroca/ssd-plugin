@@ -39,7 +39,7 @@ This approach means that people with strong business context and product taste �
 /plugin marketplace add rubenzarroca/sdd-plugin
 
 # 2. Install the plugin (choose scope: user, project, or local)
-/plugin install sdd@rubenzarroca-sdd-plugin
+/plugin install sdd@sdd-plugin
 ```
 
 Or use the interactive UI: run `/plugin`, go to **Discover**, and select **sdd**.
@@ -213,6 +213,7 @@ Enable them in `.sdd/hooks.json` when you're ready.
 ```
 sdd-plugin/
 ├── .claude-plugin/
+│   ├── marketplace.json
 │   └── plugin.json
 ├── skills/
 │   ├── sdd-init/
@@ -243,10 +244,6 @@ sdd-plugin/
 │       └── spec-complex.md
 └── README.md
 ```
-
-## Version
-
-0.4.0 — Interactive decisions via AskUserQuestionTool in plan, clarify, constitution, and specify.
 
 ## Author
 
