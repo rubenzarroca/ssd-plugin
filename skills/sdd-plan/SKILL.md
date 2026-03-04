@@ -56,6 +56,54 @@ Read `constitution.md`. The technical plan must respect every principle defined 
 
 Read `.sdd/learnings.md` if it exists. Past retro insights — especially those tagged **planning** and **implementation** — should influence architectural decisions and risk assessment. For example, if a past learning says "API integrations are more complex than they appear", factor that into the risk analysis. Do NOT fail if the file doesn't exist.
 
+## Step 3c: Verify external API documentation
+
+Scan the spec for references to external services or APIs. Look for:
+- Section 9 (API Contracts) mentioning third-party endpoints
+- Section 7 (Technical Design) referencing external services, SDKs, or integrations
+- Section 2 (Context) mentioning external platforms or services
+- Section 5 (Functional Requirements) describing interactions with external systems
+
+For each external service detected, call the `sdd_api_list` MCP tool (with the service name if identifiable) to check if documentation is cached in `.sdd/api-docs/`.
+
+Read `.sdd/hooks.json` and check if `PrePlan` hook is enabled.
+
+### If external services are detected and docs are missing:
+
+**If `PrePlan` hook is enabled (default):** BLOCK the plan. Report:
+
+```
+External API documentation required
+
+This feature integrates with external services that don't have cached documentation:
+  - {service-name}: referenced in {spec section}
+  - {service-name}: referenced in {spec section}
+
+Run /sdd:api-docs {service-name} for each service before planning.
+
+Why: Planning against assumed API behavior leads to code that fails at deploy time.
+Claude's training data may be outdated or incorrect for these APIs.
+
+To skip this check: set PrePlan.enabled = false in .sdd/hooks.json
+```
+
+Do NOT proceed with plan generation. Stop and wait for the user.
+
+**If `PrePlan` hook is disabled:** WARN but continue:
+
+```
+⚠ External services detected without cached docs: {service-names}
+Proceeding without verified API documentation. Run /sdd:api-docs to cache docs.
+```
+
+### If all detected services have cached docs:
+
+For each cached service, call `sdd_api_list` to load the endpoint index. Use this verified information — not training data — when generating the Dependencies and Architecture sections of the plan. Reference the cached docs explicitly: "Based on verified API docs for {service} (cached {date})..."
+
+### If no external services are detected:
+
+Skip this step silently.
+
 ## Step 4: Generate the technical plan
 
 Based on the spec and constitution, generate a technical plan with these sections:

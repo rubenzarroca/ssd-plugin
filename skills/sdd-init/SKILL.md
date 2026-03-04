@@ -60,6 +60,9 @@ Create these directories if they don't exist:
 - `docs/` (if not existing)
 - `docs/adr/` (if not existing)
 - `.sdd/`
+- `.sdd/api-docs/`
+
+Add `.sdd/api-docs/` to the project's `.gitignore` file (create the file if it doesn't exist, or append if it does). This directory contains cached external API documentation that should not be committed — it's fetched from live sources and may become stale.
 
 ## Step 4: Generate CLAUDE.md
 
@@ -231,6 +234,11 @@ Create `.sdd/hooks.json`:
     "action": "sdd-status",
     "description": "Show SDD status at the beginning of each session"
   },
+  "PrePlan": {
+    "enabled": true,
+    "action": "check-api-docs",
+    "description": "Block /sdd:plan if external services are detected without cached API documentation. Prevents building against assumed API behavior."
+  },
   "PreCompact": {
     "enabled": false,
     "action": "save-state",
@@ -243,6 +251,8 @@ Create `.sdd/hooks.json`:
   }
 }
 ```
+
+Also create the `.sdd/api-docs/` directory for cached external API documentation.
 
 ## Step 8: Evaluate AGENTS.md
 
@@ -263,7 +273,8 @@ Created:
   CLAUDE.md          — Project overview + SDD workflow reference
   constitution.md    — Project principles (architecture, testing, security, deps, standards)
   .sdd/state.json    — Feature state tracking
-  .sdd/hooks.json    — Hook configuration (all disabled)
+  .sdd/hooks.json    — Hook configuration (PrePlan enabled by default)
+  .sdd/api-docs/     — External API documentation cache (gitignored)
   specs/             — Feature specifications directory
   docs/adr/          — Architecture Decision Records directory
 

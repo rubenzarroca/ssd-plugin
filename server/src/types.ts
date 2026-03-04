@@ -146,6 +146,64 @@ export interface TasksJson {
   waves: Wave[];
 }
 
+// ─── API Docs Cache ─────────────────────────────────────────────
+
+export interface ApiDocsError {
+  code: number;
+  meaning: string;
+}
+
+export interface ApiDocsEndpoint {
+  method: string;
+  path: string;
+  purpose: string;
+  request?: Record<string, unknown>;
+  response?: Record<string, unknown>;
+  errors?: ApiDocsError[];
+}
+
+export interface ApiDocsJson {
+  service: string;
+  base_url: string;
+  auth: {
+    type: string;
+    header?: string;
+    notes?: string;
+  };
+  rate_limits?: {
+    rpm?: number;
+    rps?: number;
+    notes?: string;
+  };
+  endpoints: ApiDocsEndpoint[];
+  sdk?: {
+    package: string;
+    version?: string;
+    notes?: string;
+  };
+  fetched_at: string;
+  source_url?: string;
+}
+
+export interface ApiListEntry {
+  service: string;
+  base_url: string;
+  auth_type: string;
+  endpoint_count: number;
+  endpoints: Array<{ method: string; path: string; purpose: string }>;
+  fetched_at: string;
+}
+
+export interface ApiListOutput {
+  services: ApiListEntry[];
+}
+
+export interface ApiLookupOutput {
+  service: string;
+  section: string;
+  data: unknown;
+}
+
 // ─── Tool Outputs ────────────────────────────────────────────────
 
 export interface GetStateGlobalOutput {

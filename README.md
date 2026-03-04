@@ -99,13 +99,15 @@ Optional but recommended. Analyzes the spec for three types of gaps: ambiguities
 
 Generates the technical plan: architecture, dependencies, files affected, risks and trade-offs. If there are architectural alternatives, presents 2-3 options with pros/cons. When you choose, an Architecture Decision Record is automatically generated in `docs/adr/`.
 
+**External API check:** Before generating the plan, `/sdd:plan` scans the spec for references to external services. If it detects integrations without cached API documentation, it blocks the plan and directs you to run `/sdd:api-docs` first. This prevents Claude from building plans against assumed API behavior from its training data. The check is controlled by the `PrePlan` hook (enabled by default).
+
 ### 5. Tasks (`/sdd:tasks`)
 
 Decomposes the plan into atomic tasks. Each task has an ID, title, description, files affected, dependencies on other tasks, complexity rating (S/M/L), and a concrete validation criterion. Tasks are grouped into parallel waves — independent tasks can be executed simultaneously.
 
 ### 6. Implement (`/sdd:implement`)
 
-Executes tasks with minimal context budget — reads only the task blocks and their listed files. Auto-batches S-complexity tasks into a single pass. Supports explicit multi-task invocation (`/sdd:implement TASK-001 TASK-003`). If it discovers something needed that isn't covered by the task, it reports a blocker instead of implementing it. If validation fails, it retries up to 3 times before asking for help. After completing, suggests available parallel tasks.
+Executes tasks with minimal context budget — reads only the task blocks and their listed files. When a task involves external API calls, `/sdd:implement` uses `sdd_api_lookup` to load only the specific endpoint contract needed (not the full API docs), keeping context tight while ensuring the implementation uses verified API shapes. Auto-batches S-complexity tasks into a single pass. Supports explicit multi-task invocation (`/sdd:implement TASK-001 TASK-003`). If it discovers something needed that isn't covered by the task, it reports a blocker instead of implementing it. If validation fails, it retries up to 3 times before asking for help. After completing, suggests available parallel tasks.
 
 **Pair-programming mode (`--pair`):** Add the `--pair` flag to any implement command (e.g., `/sdd:implement TASK-003 --pair`). Claude generates the file structure, imports, and boilerplate, but leaves `// YOUR TURN:` markers in the business logic sections for you to complete. The difficulty of markers adapts to your experience — simpler hints on your first features, more open-ended on later ones. Maximum 3 markers per file, zero on config or boilerplate files. Without the flag, implementation works exactly as before.
 
@@ -128,6 +130,17 @@ The retro closes the feedback loop: you specified, you built, now you consolidat
 Creates or edits the project's non-negotiable principles. Organized by category: architecture, testing, security, allowed dependencies, and code standards. Principles are expressed as verifiable rules wherever possible (e.g., "Allowed imports: react, lodash, date-fns" instead of "use few libraries").
 
 The constitution wins over CLAUDE.md in conflicts. It's the highest authority in the project.
+
+### `/sdd:api-docs`
+
+Fetches and caches external API documentation before you plan or implement integrations. Takes a service name and optionally a docs URL. Uses `WebFetch`/`WebSearch` to read the real documentation and saves a structured JSON cache to `.sdd/api-docs/{service}.json` (gitignored). The cache is queried surgically during implementation via MCP tools — only the specific endpoint a task needs enters the context window, not the entire API.
+
+This solves a fundamental problem: Claude's training data may contain outdated or incorrect API documentation. By forcing a documentation-first approach, the code you ship matches the real API contract.
+
+```
+/sdd:api-docs stripe https://docs.stripe.com/api    → Fetches, parses, caches
+/sdd:api-docs bigquery                                → WebSearch finds docs, then caches
+```
 
 ### `/sdd:status`
 
@@ -166,7 +179,8 @@ your-project/
 ├── constitution.md           ← Non-negotiable principles (verifiable rules)
 ├── .sdd/
 │   ├── state.json            ← Workflow state machine + coaching profile
-│   └── hooks.json            ← Hook config (disabled by default)
+│   ├── hooks.json            ← Hook config (PrePlan enabled by default)
+│   └── api-docs/             ← Cached external API documentation (gitignored)
 ├── specs/
 │   ├── prd.md                ← Product Requirements Document (optional)
 │   └── [feature-name]/
@@ -184,15 +198,16 @@ your-project/
 
 Everything is plain text (markdown + JSON), git-friendly, and produces readable diffs.
 
-## Hooks (optional)
+## Hooks
 
-SDD generates three hooks, all disabled by default:
+SDD generates four hooks in `.sdd/hooks.json`:
 
-- **SessionStart**: auto-runs `/sdd:status` when you open Claude Code
-- **PreCompact**: saves session notes before Claude compacts context
-- **PostImplement**: runs validation after all tasks are completed
+- **SessionStart** (disabled): auto-runs `/sdd:status` when you open Claude Code
+- **PrePlan** (enabled): blocks `/sdd:plan` if external services are detected without cached API documentation — prevents building against assumed API behavior
+- **PreCompact** (disabled): saves session notes before Claude compacts context
+- **PostImplement** (disabled): runs validation after all tasks are completed
 
-Enable them in `.sdd/hooks.json` when you're ready.
+Toggle them in `.sdd/hooks.json`.
 
 ## Design principles
 
@@ -220,6 +235,8 @@ The plugin includes an MCP server that provides deterministic state machine enfo
 | `sdd_transition` | write | Transition a feature to a new state (enforces preconditions) |
 | `sdd_validate` | read | Structured coverage report (deterministic + heuristic sections) |
 | `sdd_next_action` | read | Available transitions and ready tasks for a feature |
+| `sdd_api_list` | read | Lightweight index of cached external API docs |
+| `sdd_api_lookup` | read | Surgical lookup: specific endpoint, auth, rate limits, or SDK info |
 
 ### Setup
 
@@ -279,6 +296,8 @@ sdd-plugin/
 │   │   └── SKILL.md
 │   ├── sdd-validate/
 │   │   └── SKILL.md
+│   ├── sdd-api-docs/
+│   │   └── SKILL.md
 │   ├── sdd-retro/
 │   │   └── SKILL.md
 │   ├── sdd-constitution/
@@ -299,7 +318,9 @@ sdd-plugin/
 │           ├── get-state.ts
 │           ├── transition.ts
 │           ├── validate.ts
-│           └── next-action.ts
+│           ├── next-action.ts
+│           ├── api-list.ts
+│           └── api-lookup.ts
 ├── docs/
 │   └── examples/
 │       ├── spec-simple.md

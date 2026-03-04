@@ -8,6 +8,8 @@ import { registerGetState } from "./tools/get-state.js";
 import { registerTransition } from "./tools/transition.js";
 import { registerValidate } from "./tools/validate.js";
 import { registerNextAction } from "./tools/next-action.js";
+import { registerApiList } from "./tools/api-list.js";
+import { registerApiLookup } from "./tools/api-lookup.js";
 
 // Resolve project root from CLI arg or cwd
 const projectRoot = process.argv[2] ?? process.cwd();
@@ -25,6 +27,8 @@ registerGetState(server, stateManager);
 registerTransition(server, stateManager);
 registerValidate(server, stateManager, artifactReader);
 registerNextAction(server, stateManager, artifactReader);
+registerApiList(server, artifactReader);
+registerApiLookup(server, artifactReader);
 
 // Connect via stdio
 const transport = new StdioServerTransport();

@@ -13,6 +13,7 @@
     "./skills/sdd-tasks",
     "./skills/sdd-implement",
     "./skills/sdd-validate",
+    "./skills/sdd-api-docs",
     "./skills/sdd-constitution",
     "./skills/sdd-status",
     "./skills/sdd-retro"

@@ -81,6 +81,18 @@ Read ONLY the files listed in the task's "Files" field.
 - If a file doesn't exist yet (because this task creates it), note that it needs to be created and proceed.
 - Do NOT read any files not listed in the task's Files field, even if they seem related or useful.
 
+### Step 4b: Load external API context (if applicable)
+
+Check if the task's description or files suggest interaction with an external API (e.g., HTTP client calls, SDK usage, webhook handlers, integration modules). If so:
+
+1. Identify the external service name from the task description or file names.
+2. Call `sdd_api_lookup` with the service name and the specific endpoint(s) the task will use (section: `"endpoint"`, endpoint: `"METHOD /path"`).
+3. If the lookup succeeds, use the returned API contract (request/response shapes, error codes, auth details) as the source of truth for implementation. Do NOT rely on training data for API details when cached docs exist.
+4. If the lookup returns `service_not_found`, issue a warning: "⚠ No cached API docs for `{service}`. Implementation will use best-effort knowledge. Run `/sdd:api-docs {service}` to cache verified docs." Proceed with implementation but flag this in the Step 8 report.
+5. If the task needs auth or rate limit details, call `sdd_api_lookup` with section `"auth"` or `"rate_limits"` respectively.
+
+The API docs context is loaded alongside — not instead of — the task's listed files.
+
 ## Step 5: Implement
 
 Implement EXACTLY what the task describes. Nothing more, nothing less.
