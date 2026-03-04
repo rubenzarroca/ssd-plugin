@@ -45,9 +45,9 @@ Do NOT read any other files. Do NOT read source code.
 
 Read `specs/prd.md` if it exists. Use it as additional context to validate that the spec aligns with the product vision and module boundaries defined in the PRD. Do NOT fail if no PRD exists.
 
-## Step 3c: Read project learnings
+## Step 3c: Read personal learnings
 
-Read `.sdd/learnings.md` if it exists. Past retro insights inform what to look for during gap analysis. If previous retros flagged recurring patterns (e.g., "specs keep missing error handling for external APIs"), prioritize checking those areas. Do NOT fail if the file doesn't exist.
+Read `{your auto memory directory}/sdd-learnings.md` if it exists. This file contains your personal retro insights — kept outside the repo so each team member has their own. Past insights inform what to look for during gap analysis. If previous retros flagged recurring patterns (e.g., "specs keep missing error handling for external APIs"), prioritize checking those areas. Do NOT fail if the file doesn't exist.
 
 ## Step 4: Analyze the spec for gaps
 

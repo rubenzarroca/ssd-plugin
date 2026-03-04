@@ -100,9 +100,13 @@ Save the retrospective to `specs/{feature-name}/retro.md` using this format:
 
 Confirm to the user: "Retro saved to `specs/{feature-name}/retro.md`."
 
-## Step 7: Extract learnings to project memory
+## Step 7: Extract learnings to personal memory
 
-After saving the retro, synthesize actionable insights and append them to `.sdd/learnings.md`. This file is the project's long-term memory — read by `/sdd:specify`, `/sdd:clarify`, `/sdd:plan`, and `/sdd:tasks` to avoid repeating mistakes across features.
+After saving the retro, synthesize actionable insights and append them to your **personal learnings file**. This file lives in your auto memory directory (the persistent `~/.claude/projects/<current-project>/memory/` folder) as `sdd-learnings.md` — NOT in the repo. This ensures each team member accumulates their own learnings without cross-pollination in shared repos.
+
+**Path:** `{your auto memory directory}/sdd-learnings.md`
+
+This file is read by `/sdd:specify`, `/sdd:clarify`, `/sdd:plan`, and `/sdd:tasks` to avoid repeating mistakes across features.
 
 ### What to extract
 
@@ -124,7 +128,7 @@ If `completed_features <= 1` (first retro), skip the meta-observation — not en
 
 ### Format
 
-Append to `.sdd/learnings.md` (create the file with a header if it doesn't exist). Use this format:
+Append to `{your auto memory directory}/sdd-learnings.md` (create the file with a header if it doesn't exist). Use this format:
 
 ```markdown
 ## {feature-name} ({YYYY-MM-DD})
@@ -153,8 +157,8 @@ Then stop. Do NOT suggest any next command.
 
 ## Restrictions
 
-- Do NOT modify `.sdd/state.json`. Retro is read-only on state. The only file retro writes (besides `retro.md`) is `.sdd/learnings.md`.
-- Do NOT read specs, plans, tasks, code, or constitution. Only state.json and `.sdd/learnings.md` (to append).
+- Do NOT modify `.sdd/state.json`. Retro is read-only on state. The only file retro writes (besides `retro.md`) is `{your auto memory directory}/sdd-learnings.md`.
+- Do NOT read specs, plans, tasks, code, or constitution. Only state.json and your personal learnings file (to append).
 - Do NOT auto-suggest this command from any other skill. It is purely user-initiated.
 - Do NOT ask more than 2 reflective questions. Exactly 2.
 - Do NOT grade, score, or rank the user's performance. Observations only.
