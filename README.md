@@ -6,6 +6,8 @@ Stop vibe coding. Start building with specs — and learn to write better ones a
 
 ## Why SDD
 
+When AI writes all the code, you ship faster but understand less — until you become a passenger in your own codebase.
+
 **Without SDD** — You tell Claude "build me an OAuth2 login". Claude makes 200 decisions for you: session duration, token storage, error handling, refresh strategy, redirect flows. Each decision is reasonable in isolation, but they don't align with each other or with your architecture. You ship fast, understand little, and the next feature conflicts with the first.
 
 **With SDD** — You specify what you actually need through a guided interview. Claude coaches you on gaps ("You haven't defined token refresh — with your expected 10k daily users, silent refresh with rotation would prevent session drops. Want me to add that?"). Every requirement is explicit before any code is written. You ship at the same speed, but you understand what you shipped and it holds together.
